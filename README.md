@@ -1,5 +1,8 @@
 ## Tallinn Bible Centre
 
+<img src="tbc-logo.svg" width=280>
+<br>
+
 <img src="tbc-00.svg" width=600>
 <br>
 
