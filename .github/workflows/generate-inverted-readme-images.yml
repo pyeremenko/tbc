@@ -33,7 +33,7 @@ jobs:
 
             rsvg-convert "$file" -o "/tmp/${name}.png"
 
-            magick "/tmp/${name}.png" \
+            convert "/tmp/${name}.png" \
               -channel RGB -negate +channel \
               "readme/${name}-inverted.png"
           done
