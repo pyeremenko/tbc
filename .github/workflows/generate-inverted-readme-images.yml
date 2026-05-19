@@ -1,4 +1,4 @@
-name: Generate inverted README images
+name: Generate inverted README SVGs
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - "tbc-*.svg"
-      - ".github/workflows/generate-inverted-readme-images.yml"
+      - ".github/workflows/generate-inverted-readme-svgs.yml"
 
 permissions:
   contents: write
@@ -19,35 +19,75 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install image tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y librsvg2-bin imagemagick
-
-      - name: Generate inverted PNG images
+      - name: Generate inverted SVG copies
         run: |
           mkdir -p readme
 
-          for file in tbc-logo.svg tbc-00.svg tbc-01.svg tbc-en.svg; do
-            name="${file%.svg}"
+          python3 <<'PY'
+          from pathlib import Path
+          import re
 
-            rsvg-convert "$file" -o "/tmp/${name}.png"
+          files = [
+              "tbc-logo.svg",
+              "tbc-00.svg",
+              "tbc-01.svg",
+              "tbc-en.svg",
+          ]
 
-            convert "/tmp/${name}.png" \
-              -channel RGB -negate +channel \
-              "readme/${name}-inverted.png"
-          done
+          filter_block = '''
+            <defs>
+              <filter id="readme-invert">
+                <feComponentTransfer>
+                  <feFuncR type="table" tableValues="1 0"/>
+                  <feFuncG type="table" tableValues="1 0"/>
+                  <feFuncB type="table" tableValues="1 0"/>
+                  <feFuncA type="identity"/>
+                </feComponentTransfer>
+              </filter>
+            </defs>
+          '''
+
+          for filename in files:
+              source = Path(filename)
+
+              if not source.exists():
+                  print(f"Missing {filename}, skipping")
+                  continue
+
+              svg = source.read_text(encoding="utf-8")
+
+              svg_open = re.search(r"<svg\b[^>]*>", svg, flags=re.IGNORECASE)
+              if not svg_open:
+                  raise RuntimeError(f"{filename}: no <svg> tag found")
+
+              svg_close = svg.lower().rfind("</svg>")
+              if svg_close == -1:
+                  raise RuntimeError(f"{filename}: no </svg> tag found")
+
+              result = (
+                  svg[:svg_open.end()]
+                  + filter_block
+                  + '\n<g filter="url(#readme-invert)">\n'
+                  + svg[svg_open.end():svg_close]
+                  + "\n</g>\n"
+                  + svg[svg_close:]
+              )
+
+              output = Path("readme") / f"{source.stem}-inverted.svg"
+              output.write_text(result, encoding="utf-8")
+              print(output)
+          PY
 
       - name: Commit generated files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add readme/*-inverted.png
+          git add readme/*-inverted.svg
 
           if git diff --cached --quiet; then
             echo "No generated changes"
           else
-            git commit -m "Generate inverted README images"
+            git commit -m "Generate inverted README SVGs"
             git push
           fi
