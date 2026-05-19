@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - "tbc-*.svg"
-      - ".github/workflows/generate-inverted-readme-svgs.yml"
+      - ".github/workflows/*.yml"
 
 permissions:
   contents: write
